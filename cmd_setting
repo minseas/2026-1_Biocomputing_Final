@@ -1,0 +1,81 @@
+
+#--------------------------------------#
+# 260608, Minseo Park and Chae-lin Kim #
+#--------------------------------------#
+
+# make directory
+mkdir ./rawdata
+mkdir ./ref
+mkdir ./ref/bwa
+mkdir ./ref/hisat2
+mkdir ./ref/star
+mkdir ./ref/tophat2
+mkdir ./log
+mkdir ./res
+mkdir ./res/QC_before
+mkdir ./res/counts
+mkdir -p ./res/bwa ./res/hisat2 ./res/star ./res/tophat2
+mkdir ./scripts
+
+
+### rawdata
+# ----- at local -----
+# rsync -avz -e 'ssh -p 2627' /mnt/c/Users/eddy0/Documents/2026_hADSC.zip team03@202.30.20.31:~/rawdata/
+# ----- at local -----
+
+# unzip
+unzip rawdata/2026_hADSC.zip -d ./rawdata
+rm ./rawdata/2026_hADSC.zip
+
+# md5sum check
+md5sum ./rawdata/1.Fastq/p*.fastq.gz > rawdata/1.Fastq/md5sum_after.txt
+
+# symbolic link
+ln -s ./rawdata/1.Fastq/p15_1_1.fastq.gz ./hADSC_p15_s1_r1.fastq.gz
+ln -s ./rawdata/1.Fastq/p15_1_2.fastq.gz ./hADSC_p15_s1_r2.fastq.gz
+ln -s ./rawdata/1.Fastq/p15_3_1.fastq.gz ./hADSC_p15_s2_r1.fastq.gz
+ln -s ./rawdata/1.Fastq/p15_3_2.fastq.gz ./hADSC_p15_s2_r2.fastq.gz
+ln -s ./rawdata/1.Fastq/p15_5_1.fastq.gz ./hADSC_p15_s3_r1.fastq.gz
+ln -s ./rawdata/1.Fastq/p15_5_2.fastq.gz ./hADSC_p15_s3_r2.fastq.gz
+
+ln -s ./rawdata/1.Fastq/p5_4_1.fastq.gz ./hADSC_p5_s1_r1.fastq.gz
+ln -s ./rawdata/1.Fastq/p5_4_2.fastq.gz ./hADSC_p5_s1_r2.fastq.gz
+ln -s ./rawdata/1.Fastq/p5_5_1.fastq.gz ./hADSC_p5_s2_r1.fastq.gz
+ln -s ./rawdata/1.Fastq/p5_5_2.fastq.gz ./hADSC_p5_s2_r2.fastq.gz
+ln -s ./rawdata/1.Fastq/p5_6_1.fastq.gz ./hADSC_p5_s3_r1.fastq.gz
+ln -s ./rawdata/1.Fastq/p5_6_2.fastq.gz ./hADSC_p5_s3_r2.fastq.gz
+
+
+### env setting
+## install conda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+source ~/.bashrc
+rm ./Miniconda3-latest-Linux-x86_64.sh
+
+conda config --add channels bioconda
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+
+## conda env setting
+conda create -n rnaseq -y python=3.9
+conda activate rnaseq
+
+## ----- hisat2 (python=2.7) ---------
+# conda create -n tophat2 -y python=2.7
+# conda activate tophat2
+# conda install -y tophat bowtie2 samtools
+## -----------------------------------
+
+
+# install tools
+conda install -y bwa hisat2 star tophat samtools subread
+conda install -y fastqc
+
+
+### download gtf and fasta
+nohup wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_49/GRCh38.primary_assembly.genome.fa.gz -P ./ref/ &nohup wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_49/gencode.v49.annotation.gtf.gz -P ./ref/ &
+
+# unzip
+gunzip ./ref/GRCh38.primary_assembly.genome.fa.gz
+gunzip ./ref/gencode.v49.annotation.gtf.gz

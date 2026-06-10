@@ -1,0 +1,92 @@
+
+#--------------------------------------#
+# 260608, Minseo Park and Chae-lin Kim #
+#--------------------------------------#
+
+### indexing
+# bwa (51m29s)
+nohup bwa index -p ./ref/bwa/GRCh38p14 ./ref/GRCh38.primary_assembly.genome.fa  > ref/bwa/log_GRCh38p14.log 2>&1 &
+
+# hisat2
+# == TRY1 == (13m18s)
+# hisat2-build -p 6 ./ref/GRCh38.primary_assembly.genome.fa ./ref/hisat2/GRCh38p14 > ./ref/hisat2/log_GRCh38p14.log 2>&1 &
+# mkdir ./ref/hisat2/old
+# mv ./ref/hisat2/GRCh38p14.* ./ref/hisat2/old/
+# mkdir ./log/old
+# mv ./log/*hisat2*.log ./log/old
+# mkdir ./res/hisat2/old
+# mv ./res/hisat2/*.bam ./res/hisat2/old
+# mkdir ./res/counts/old
+# mv ./res/counts
+# mv ./res/counts/counts_hisat2.* ./res/counts/old/
+#==========
+
+# (77m32s)
+hisat2_extract_splice_sites.py ./ref/gencode.v49.annotation.gtf > ./ref/hisat2/splicesites.tsv
+hisat2_extract_exons.py ./ref/gencode.v49.annotation.gtf > ./ref/hisat2/exons.tsv
+nohup hisat2-build -p 6 --ss ./ref/hisat2/splicesites.tsv --exon ./ref/hisat2/exons.tsv ./ref/GRCh38.primary_assembly.genome.fa ./ref/hisat2/GRCh38p14 > ./log/indxing_hisat2.log 2>&1 &
+
+# star (40m41s)
+nohup STAR --runMode genomeGenerate --genomeDir ./ref/star/ --genomeFastaFiles ./ref/GRCh38.primary_assembly.genome.fa --sjdbGTFfile ./ref/gencode.v49.annotation.gtf --runThreadN 6 > ref/star/log_GRCh38p14.log 2>&1 &
+
+# tophat2 (10m45s)
+nohup bowtie2-build --threads 6 ./ref/GRCh38.primary_assembly.genome.fa ./ref/tophat2/GRCh38p14 > ref/tophat2/log_GRCh38p14.log 2>&1 &
+
+# logs
+mv ./ref/hisat2/log_GRCh38p14.log ./log/indexing_hisat2.log
+mv ./ref/tophat2/log_GRCh38p14.log ./log/indexing_tophat2.log
+mv ./ref/bwa/log_GRCh38p14.log ./log/indexing_bwa.log
+mv ./ref/star/log_GRCh38p14.log ./log/indexing_star.log
+
+
+### fastQC (before)
+nohup fastqc ./rawdata/1.Fastq/hADSC_p*.fastq.gz -o ./res/QC_before/ -t 6 > ./log/QC_before.log 2>&1 &
+# ----- at local -----
+# scp -P 2627 team03@202.30.20.31:~/final/res/QC_before/* <Target Dir>
+# ----- at local -----
+
+
+### align
+# bwa
+nohup bash ./scripts/bwa-mem.sh > ./log/align_bwa_all.log 2>&1 &
+
+# hisat2
+# == TRY1 ==
+# nohup bash ./scripts/hisat2.sh > ./log/align_hisat2_all.log 2>&1 &
+# mkdir ./log/old
+# mv ./log/*hisat2*.log ./log/old
+# mkdir ./res/hisat2/old
+# mv ./res/hisat2/*.bam ./res/hisat2/old
+# mv ./log/*hisat2*.log ./log/old
+# ==========
+nohup bash ./scripts/hisat2.sh > ./log/align_hisat2_all.log 2>&1 &
+
+# star
+nohup bash ./scripts/star.sh > ./log/align_star_all.log 2>&1 &
+
+# tophat2 
+# python version issue (3.9 --> 2.7, tophat2 conda env)
+conda activate tophat2
+nohup bash ./scripts/tophat2.sh > ./log/align_tophat2_all.log 2>&1 &
+conda activate rnaseq
+
+
+### Quantification
+
+# bwa
+featureCounts -T 6 -p -a ./ref/gencode.v49.annotation.gtf -o ./res/counts/counts_bwa.txt ./res/bwa/hADSC_p*_s*_sorted.bam > log/featurecounts_bwa.log 2>&1
+
+# hisat2
+# == TRY1 ==
+# featureCounts -T 6 -p -a ./ref/gencode.v49.annotation.gtf -o ./res/counts/counts_hisat2.txt ./res/hisat2/hADSC_p*_s*_sorted.bam > ./log/featurecounts_hisat2.log 2>&1
+# mkdir ./res/counts/old
+# mv ./res/counts
+# mv ./res/counts/counts_hisat2.* ./res/counts/old/
+# mv ./log/*hisat2*.log ./log/old
+# ==========
+featureCounts -T 6 -p -a ./ref/gencode.v49.annotation.gtf -o ./res/counts/counts_hisat2.txt ./res/hisat2/hADSC_p*_s*_sorted.bam > ./log/featurecounts_hisat2.log 2>&1
+
+# star
+featureCounts -T 6 -p -a ./ref/gencode.v49.annotation.gtf -o ./res/counts/counts_star.txt ./res/star/hADSC_p*_s*_Aligned.sortedByCoord.out.bam > ./log/featurecounts_star.log 2>&1
+
+# tophat2
